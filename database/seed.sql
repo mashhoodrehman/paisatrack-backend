@@ -1,4 +1,4 @@
-USE paisatrack_pk;
+USE wa_test;
 
 INSERT IGNORE INTO categories (name, icon_name, color_hex, is_default) VALUES
 ('Groceries', 'shopping-cart', '#16A34A', 1),
