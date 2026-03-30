@@ -2,7 +2,7 @@ const pool = require("../db/pool");
 
 async function getDashboard(userId) {
   const [[user]] = await pool.query(
-    "SELECT full_name, monthly_income, currency_code FROM users WHERE id = ?",
+    "SELECT full_name, username, monthly_income, currency_code FROM users WHERE id = ?",
     [userId]
   );
 

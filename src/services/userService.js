@@ -4,14 +4,15 @@ async function updateSetup(userId, payload) {
   await pool.query(
     `UPDATE users
      SET full_name = COALESCE(?, full_name),
+         username = COALESCE(?, username),
          monthly_income = COALESCE(?, monthly_income),
          currency_code = COALESCE(?, currency_code)
      WHERE id = ?`,
-    [payload.fullName || null, payload.monthlyIncome || null, payload.currencyCode || null, userId]
+    [payload.fullName || null, payload.username || null, payload.monthlyIncome || null, payload.currencyCode || null, userId]
   );
 
   const [rows] = await pool.query(
-    "SELECT id, full_name, phone_number, email, monthly_income, currency_code FROM users WHERE id = ?",
+    "SELECT id, full_name, username, phone_number, email, email_verified_at, monthly_income, currency_code FROM users WHERE id = ?",
     [userId]
   );
 
@@ -20,7 +21,7 @@ async function updateSetup(userId, payload) {
 
 async function getSettings(userId) {
   const [userRows] = await pool.query(
-    `SELECT id, full_name, phone_number, email, monthly_income, currency_code, language_code,
+    `SELECT id, full_name, username, phone_number, email, email_verified_at, monthly_income, currency_code, language_code,
             notifications_enabled, whatsapp_sharing_enabled, is_premium
      FROM users WHERE id = ?`,
     [userId]
