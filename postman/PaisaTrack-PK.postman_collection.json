@@ -2,13 +2,13 @@
   "info": {
     "name": "PaisaTrack PK API",
     "_postman_id": "17c25c71-8ecb-4593-918f-0ce028117f65",
-    "description": "Postman collection for PaisaTrack PK backend",
+    "description": "Complete Postman collection for PaisaTrack PK backend with mock request payloads.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     {
       "key": "baseUrl",
-      "value": "https://emogene-biggish-nonconcordantly.ngrok-free.dev/api"
+      "value": "https://app-runolfsdottir.cvvm9olplp-gjy3m9eyd48q.p.temp-site.link/api"
     },
     {
       "key": "token",
@@ -38,576 +38,1165 @@
   "item": [
     {
       "name": "Health",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/health",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "health"
-          ]
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          }
         }
-      }
+      ]
     },
     {
-      "name": "Auth - Request OTP",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Request OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"+923001112233\",\n  \"email\": \"demo@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/request-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "request-otp"
+              ]
+            }
           }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"phoneNumber\": \"+923001112233\"\n}"
         },
-        "url": {
-          "raw": "{{baseUrl}}/auth/request-otp",
-          "host": [
-            "{{baseUrl}}"
+        {
+          "name": "Verify OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json?.data?.token) {",
+                  "  pm.collectionVariables.set('token', json.data.token);",
+                  "}"
+                ]
+              }
+            }
           ],
-          "path": [
-            "auth",
-            "request-otp"
-          ]
-        }
-      }
-    },
-    {
-      "name": "Auth - Verify OTP",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"+923001112233\",\n  \"otpCode\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/verify-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "verify-otp"
+              ]
+            }
           }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"phoneNumber\": \"+923001112233\",\n  \"otpCode\": \"123456\"\n}"
         },
-        "url": {
-          "raw": "{{baseUrl}}/auth/verify-otp",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "auth",
-            "verify-otp"
-          ]
-        }
-      }
-    },
-    {
-      "name": "User Setup",
-      "request": {
-        "method": "PUT",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{token}}"
+        {
+          "name": "Request Email OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Muhammad Ali\",\n  \"username\": \"mali\",\n  \"email\": \"mali@example.com\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/request-email-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "request-email-otp"
+              ]
+            }
           }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"fullName\": \"Muhammad Ali\",\n  \"monthlyIncome\": 250000,\n  \"currencyCode\": \"PKR\"\n}"
         },
-        "url": {
-          "raw": "{{baseUrl}}/users/setup",
-          "host": [
-            "{{baseUrl}}"
+        {
+          "name": "Verify Email OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json?.data?.token) {",
+                  "  pm.collectionVariables.set('token', json.data.token);",
+                  "}"
+                ]
+              }
+            }
           ],
-          "path": [
-            "users",
-            "setup"
-          ]
-        }
-      }
-    },
-    {
-      "name": "Get Dashboard",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Authorization",
-            "value": "Bearer {{token}}"
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"mali@example.com\",\n  \"otpCode\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/verify-email-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "verify-email-otp"
+              ]
+            }
           }
-        ],
-        "url": {
-          "raw": "{{baseUrl}}/home/dashboard",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "home",
-            "dashboard"
-          ]
-        }
-      }
-    },
-    {
-      "name": "Get Categories",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Authorization",
-            "value": "Bearer {{token}}"
-          }
-        ],
-        "url": {
-          "raw": "{{baseUrl}}/master-data/categories",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "master-data",
-            "categories"
-          ]
-        }
-      }
-    },
-    {
-      "name": "Create Expense",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{token}}"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"amount\": 2500,\n  \"categoryId\": 2,\n  \"paymentMethodId\": 1,\n  \"paymentAccount\": \"Cash Wallet\",\n  \"date\": \"2026-03-29 10:00:00\",\n  \"notes\": \"Petrol\",\n  \"createdVia\": \"manual\",\n  \"isCreditCard\": false\n}"
         },
-        "url": {
-          "raw": "{{baseUrl}}/expenses",
-          "host": [
-            "{{baseUrl}}"
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json?.data?.token) {",
+                  "  pm.collectionVariables.set('token', json.data.token);",
+                  "}"
+                ]
+              }
+            }
           ],
-          "path": [
-            "expenses"
-          ]
-        }
-      }
-    },
-    {
-      "name": "Create Split Expense",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{token}}"
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"mali\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
           }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"amount\": 2000,\n  \"categoryId\": 9,\n  \"paymentMethodId\": 1,\n  \"date\": \"2026-03-29 20:00:00\",\n  \"notes\": \"Dinner split\",\n  \"splitParticipants\": [\n    { \"name\": \"Me\", \"shareType\": \"custom\", \"shareAmount\": 500, \"paidAmount\": 1200 },\n    { \"name\": \"Ali\", \"shareType\": \"custom\", \"shareAmount\": 500, \"paidAmount\": 800 },\n    { \"name\": \"Hassan\", \"shareType\": \"custom\", \"shareAmount\": 500, \"paidAmount\": 0 },\n    { \"name\": \"Khuram\", \"shareType\": \"custom\", \"shareAmount\": 500, \"paidAmount\": 0 }\n  ]\n}"
         },
-        "url": {
-          "raw": "{{baseUrl}}/expenses",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "expenses"
-          ]
-        }
-      }
-    },
-    {
-      "name": "Get Split Settlements",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Authorization",
-            "value": "Bearer {{token}}"
+        {
+          "name": "Get Me",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            }
           }
-        ],
-        "url": {
-          "raw": "{{baseUrl}}/expenses/{{expenseId}}/settlements",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "expenses",
-            "{{expenseId}}",
-            "settlements"
-          ]
-        }
-      }
-    },
-    {
-      "name": "Create Group",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{token}}"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"name\": \"University Friends\",\n  \"description\": \"Weekend hangouts\",\n  \"members\": [\n    { \"name\": \"Ali\", \"phone\": \"+923001110001\" },\n    { \"name\": \"Hassan\", \"phone\": \"+923001110002\" },\n    { \"name\": \"Khuram\", \"phone\": \"+923001110003\" }\n  ]\n}"
         },
-        "url": {
-          "raw": "{{baseUrl}}/groups",
-          "host": [
-            "{{baseUrl}}"
+        {
+          "name": "Google Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json?.data?.token) {",
+                  "  pm.collectionVariables.set('token', json.data.token);",
+                  "}"
+                ]
+              }
+            }
           ],
-          "path": [
-            "groups"
-          ]
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"google.user@example.com\",\n  \"fullName\": \"Google User\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/google",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "google"
+              ]
+            }
+          }
         }
-      }
+      ]
     },
     {
-      "name": "Create Borrow Record",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{token}}"
+      "name": "Master Data",
+      "item": [
+        {
+          "name": "Get Categories",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/master-data/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "master-data",
+                "categories"
+              ]
+            }
           }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"personName\": \"Ali\",\n  \"type\": \"borrow\",\n  \"amount\": 10000,\n  \"date\": \"2026-03-29\",\n  \"returnDate\": \"2026-04-15\",\n  \"status\": \"pending\",\n  \"notes\": \"Short-term cash need\"\n}"
         },
-        "url": {
-          "raw": "{{baseUrl}}/borrow-lend",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "borrow-lend"
-          ]
+        {
+          "name": "Get Payment Methods",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/master-data/payment-methods",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "master-data",
+                "payment-methods"
+              ]
+            }
+          }
         }
-      }
+      ]
     },
     {
-      "name": "Create Vendor",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{token}}"
+      "name": "Users",
+      "item": [
+        {
+          "name": "Update Setup",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Muhammad Ali\",\n  \"username\": \"mali\",\n  \"monthlyIncome\": 250000,\n  \"currencyCode\": \"PKR\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/setup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "setup"
+              ]
+            }
           }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"vendorName\": \"Imran Store\",\n  \"vendorPhone\": \"+923001119999\"\n}"
         },
-        "url": {
-          "raw": "{{baseUrl}}/ledger/vendors",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "ledger",
-            "vendors"
-          ]
-        }
-      }
-    },
-    {
-      "name": "Create Parchi Entry",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{token}}"
+        {
+          "name": "Get Settings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "settings"
+              ]
+            }
           }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"entryType\": \"purchase\",\n  \"amount\": 800,\n  \"date\": \"2026-03-29\",\n  \"status\": \"unpaid\",\n  \"notes\": \"Milk and groceries\"\n}"
         },
-        "url": {
-          "raw": "{{baseUrl}}/ledger/vendors/{{vendorId}}/entries",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "ledger",
-            "vendors",
-            "{{vendorId}}",
-            "entries"
-          ]
+        {
+          "name": "Update Settings",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currencyCode\": \"PKR\",\n  \"languageCode\": \"en\",\n  \"notificationsEnabled\": true,\n  \"whatsappSharingEnabled\": true,\n  \"isPremium\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "settings"
+              ]
+            }
+          }
         }
-      }
+      ]
     },
     {
-      "name": "Create Recurring Payment",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{token}}"
+      "name": "Home",
+      "item": [
+        {
+          "name": "Get Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/home/dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "home",
+                "dashboard"
+              ]
+            }
           }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"title\": \"School Fees\",\n  \"amount\": 6000,\n  \"frequency\": \"monthly\",\n  \"nextDueDate\": \"2026-04-05\",\n  \"reminderDaysBefore\": 5,\n  \"notes\": \"Child monthly fee\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Expenses",
+      "item": [
+        {
+          "name": "Create Expense",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 2500,\n  \"categoryId\": 2,\n  \"paymentMethodId\": 1,\n  \"paymentAccount\": \"Cash Wallet\",\n  \"date\": \"2026-03-31 10:00:00\",\n  \"notes\": \"Petrol\",\n  \"receiptUrl\": \"https://example.com/receipts/petrol.jpg\",\n  \"createdVia\": \"manual\",\n  \"isCreditCard\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/expenses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "expenses"
+              ]
+            }
+          }
         },
-        "url": {
-          "raw": "{{baseUrl}}/recurring",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "recurring"
-          ]
-        }
-      }
-    },
-    {
-      "name": "Create Committee",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{token}}"
+        {
+          "name": "Create Split Expense",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"groupId\": {{groupId}},\n  \"amount\": 2000,\n  \"categoryId\": 9,\n  \"paymentMethodId\": 1,\n  \"paymentAccount\": \"JazzCash\",\n  \"date\": \"2026-03-31 20:00:00\",\n  \"notes\": \"Dinner split\",\n  \"createdVia\": \"manual\",\n  \"isCreditCard\": false,\n  \"splitParticipants\": [\n    { \"name\": \"Me\", \"shareType\": \"custom\", \"shareAmount\": 500, \"paidAmount\": 1200 },\n    { \"name\": \"Ali\", \"phone\": \"+923001110001\", \"shareType\": \"custom\", \"shareAmount\": 500, \"paidAmount\": 800 },\n    { \"name\": \"Hassan\", \"phone\": \"+923001110002\", \"shareType\": \"custom\", \"shareAmount\": 500, \"paidAmount\": 0 },\n    { \"name\": \"Khuram\", \"phone\": \"+923001110003\", \"shareType\": \"custom\", \"shareAmount\": 500, \"paidAmount\": 0 }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/expenses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "expenses"
+              ]
+            }
           }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"name\": \"Office Beesi\",\n  \"contributionAmount\": 5000,\n  \"nextPayoutMember\": \"Asad\",\n  \"members\": [\n    { \"name\": \"Asad\" },\n    { \"name\": \"Ali\" },\n    { \"name\": \"Sara\" }\n  ]\n}"
         },
-        "url": {
-          "raw": "{{baseUrl}}/committees",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "committees"
-          ]
-        }
-      }
-    },
-    {
-      "name": "Create Committee Installment",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{token}}"
+        {
+          "name": "Get Expenses",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/expenses?categoryId=2&paymentMethodId=1&type=split&search=petrol",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "expenses"
+              ],
+              "query": [
+                {
+                  "key": "categoryId",
+                  "value": "2"
+                },
+                {
+                  "key": "paymentMethodId",
+                  "value": "1"
+                },
+                {
+                  "key": "type",
+                  "value": "split"
+                },
+                {
+                  "key": "search",
+                  "value": "petrol"
+                }
+              ]
+            }
           }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"paidByMember\": \"Ali\",\n  \"amount\": 5000,\n  \"date\": \"2026-03-29\",\n  \"notes\": \"Paid today\"\n}"
         },
-        "url": {
-          "raw": "{{baseUrl}}/committees/{{committeeId}}/installments",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "committees",
-            "{{committeeId}}",
-            "installments"
-          ]
+        {
+          "name": "Get Split Settlements",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/expenses/{{expenseId}}/settlements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "expenses",
+                "{{expenseId}}",
+                "settlements"
+              ]
+            }
+          }
         }
-      }
+      ]
     },
     {
-      "name": "Scan Document",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{token}}"
+      "name": "Groups",
+      "item": [
+        {
+          "name": "Create Group",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"University Friends\",\n  \"description\": \"Weekend hangouts\",\n  \"members\": [\n    { \"name\": \"Ali\", \"phone\": \"+923001110001\", \"email\": \"ali@example.com\" },\n    { \"name\": \"Hassan\", \"phone\": \"+923001110002\", \"email\": \"hassan@example.com\" },\n    { \"name\": \"Khuram\", \"phone\": \"+923001110003\", \"email\": \"khuram@example.com\" }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/groups",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "groups"
+              ]
+            }
           }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"documentType\": \"utility_bill\",\n  \"imageUrl\": \"https://example.com/bill.jpg\",\n  \"extractedMerchantName\": \"K-Electric\",\n  \"extractedTotalAmount\": 8450,\n  \"extractedDate\": \"2026-03-25\",\n  \"extractedDueDate\": \"2026-04-05\"\n}"
         },
-        "url": {
-          "raw": "{{baseUrl}}/documents/scan",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "documents",
-            "scan"
-          ]
-        }
-      }
-    },
-    {
-      "name": "Parse Voice Command",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{token}}"
+        {
+          "name": "Get Groups",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/groups",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "groups"
+              ]
+            }
           }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"command\": \"Lunch 2000 split between me Ali Hassan Khuram, I paid 1200 Ali paid 800\"\n}"
         },
-        "url": {
-          "raw": "{{baseUrl}}/voice/parse",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "voice",
-            "parse"
-          ]
-        }
-      }
-    },
-    {
-      "name": "Create Credit Card",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{token}}"
+        {
+          "name": "Get Group Expenses",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/groups/{{groupId}}/expenses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "groups",
+                "{{groupId}}",
+                "expenses"
+              ]
+            }
           }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"cardName\": \"HBL Platinum\",\n  \"bankName\": \"HBL\",\n  \"lastFourDigits\": \"1234\",\n  \"creditLimit\": 300000,\n  \"billingCycleDay\": 15,\n  \"dueDay\": 28\n}"
         },
-        "url": {
-          "raw": "{{baseUrl}}/cards",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "cards"
-          ]
+        {
+          "name": "Get Group Settlement",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/groups/{{groupId}}/settlement",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "groups",
+                "{{groupId}}",
+                "settlement"
+              ]
+            }
+          }
         }
-      }
+      ]
     },
     {
-      "name": "Pay Credit Card Bill",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{token}}"
+      "name": "Borrow Lend",
+      "item": [
+        {
+          "name": "Create Record",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"personName\": \"Ali\",\n  \"type\": \"borrow\",\n  \"amount\": 10000,\n  \"date\": \"2026-03-31\",\n  \"returnDate\": \"2026-04-15\",\n  \"status\": \"pending\",\n  \"notes\": \"Short-term cash need\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/borrow-lend",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "borrow-lend"
+              ]
+            }
           }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"amountPaid\": 20000,\n  \"paymentDate\": \"2026-03-29\",\n  \"paymentType\": \"partial\",\n  \"notes\": \"Paid through bank transfer\"\n}"
         },
-        "url": {
-          "raw": "{{baseUrl}}/cards/{{cardId}}/payments",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "cards",
-            "{{cardId}}",
-            "payments"
-          ]
+        {
+          "name": "Get Records",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/borrow-lend",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "borrow-lend"
+              ]
+            }
+          }
         }
-      }
+      ]
     },
     {
-      "name": "Get Reports",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Authorization",
-            "value": "Bearer {{token}}"
+      "name": "Ledger",
+      "item": [
+        {
+          "name": "Create Vendor",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vendorName\": \"Imran Store\",\n  \"vendorPhone\": \"+923001119999\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ledger/vendors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ledger",
+                "vendors"
+              ]
+            }
           }
-        ],
-        "url": {
-          "raw": "{{baseUrl}}/reports",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "reports"
-          ]
+        },
+        {
+          "name": "Get Vendors",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ledger/vendors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ledger",
+                "vendors"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Vendor Entry",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"entryType\": \"purchase\",\n  \"amount\": 800,\n  \"date\": \"2026-03-31\",\n  \"status\": \"unpaid\",\n  \"notes\": \"Milk and groceries\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ledger/vendors/{{vendorId}}/entries",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ledger",
+                "vendors",
+                "{{vendorId}}",
+                "entries"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Vendor Entries",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ledger/vendors/{{vendorId}}/entries",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ledger",
+                "vendors",
+                "{{vendorId}}",
+                "entries"
+              ]
+            }
+          }
         }
-      }
+      ]
+    },
+    {
+      "name": "Recurring",
+      "item": [
+        {
+          "name": "Create Recurring Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"School Fees\",\n  \"amount\": 6000,\n  \"frequency\": \"monthly\",\n  \"nextDueDate\": \"2026-04-05\",\n  \"reminderDaysBefore\": 5,\n  \"notes\": \"Child monthly fee\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/recurring",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "recurring"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Recurring Payments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/recurring",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "recurring"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Committees",
+      "item": [
+        {
+          "name": "Create Committee",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Office Beesi\",\n  \"contributionAmount\": 5000,\n  \"payoutOrderIndex\": 1,\n  \"nextPayoutMember\": \"Asad\",\n  \"members\": [\n    { \"name\": \"Asad\", \"phone\": \"+923001110010\" },\n    { \"name\": \"Ali\", \"phone\": \"+923001110011\" },\n    { \"name\": \"Sara\", \"phone\": \"+923001110012\" }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/committees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "committees"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Committees",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/committees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "committees"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Installment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paidByMember\": \"Ali\",\n  \"amount\": 5000,\n  \"date\": \"2026-03-31\",\n  \"notes\": \"Paid today\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/committees/{{committeeId}}/installments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "committees",
+                "{{committeeId}}",
+                "installments"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Documents",
+      "item": [
+        {
+          "name": "Scan Document",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"documentType\": \"utility_bill\",\n  \"imageUrl\": \"https://example.com/bill.jpg\",\n  \"extractedMerchantName\": \"K-Electric\",\n  \"extractedTotalAmount\": 8450,\n  \"extractedDate\": \"2026-03-25\",\n  \"extractedDueDate\": \"2026-04-05\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/documents/scan",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "documents",
+                "scan"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Voice",
+      "item": [
+        {
+          "name": "Parse Voice Command",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"command\": \"Lunch 2000 split between me Ali Hassan Khuram, I paid 1200 Ali paid 800\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/voice/parse",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "voice",
+                "parse"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "Get Reports",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cards",
+      "item": [
+        {
+          "name": "Create Card",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cardName\": \"HBL Platinum\",\n  \"bankName\": \"HBL\",\n  \"lastFourDigits\": \"1234\",\n  \"creditLimit\": 300000,\n  \"billingCycleDay\": 15,\n  \"dueDay\": 28\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/cards",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cards"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Cards",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cards",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cards"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Card Detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cards/{{cardId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cards",
+                "{{cardId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Pay Bill",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amountPaid\": 20000,\n  \"paymentDate\": \"2026-03-31\",\n  \"paymentType\": \"partial\",\n  \"notes\": \"Paid through bank transfer\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/cards/{{cardId}}/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cards",
+                "{{cardId}}",
+                "payments"
+              ]
+            }
+          }
+        }
+      ]
     }
   ]
 }
