@@ -165,10 +165,11 @@ async function getExpenses(userId, filters) {
   }
 
   const [rows] = await pool.query(
-    `SELECT e.*, c.name AS category_name, pm.name AS payment_method_name
+    `SELECT e.*, c.name AS category_name, pm.name AS payment_method_name, owner.full_name AS owner_name
      FROM expenses e
      LEFT JOIN categories c ON c.id = e.category_id
      LEFT JOIN payment_methods pm ON pm.id = e.payment_method_id
+     LEFT JOIN users owner ON owner.id = e.user_id
      WHERE ${conditions.join(" AND ")}
      ORDER BY e.expense_date DESC, e.id DESC`,
     params
