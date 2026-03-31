@@ -182,13 +182,6 @@ async function addIncomeEntry(userId, payload) {
     [userId, payload.source, payload.amount, payload.date, payload.notes || null]
   );
 
-  if (payload.source) {
-    await pool.query(
-      "UPDATE users SET income_source = ? WHERE id = ?",
-      [payload.source, userId]
-    );
-  }
-
   return { id: result.insertId, message: "Income entry created successfully" };
 }
 
