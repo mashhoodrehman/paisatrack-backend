@@ -108,6 +108,7 @@ CREATE TABLE IF NOT EXISTS expense_shares (
   participant_name VARCHAR(120) NOT NULL,
   participant_user_id INT NULL,
   participant_phone VARCHAR(30),
+  participant_email VARCHAR(150),
   share_type ENUM('equal', 'custom', 'percentage') DEFAULT 'equal',
   share_amount DECIMAL(12,2) DEFAULT 0,
   percentage_share DECIMAL(5,2),

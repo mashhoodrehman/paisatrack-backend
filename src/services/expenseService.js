@@ -88,13 +88,14 @@ async function createExpense(userId, payload) {
 
         await connection.query(
           `INSERT INTO expense_shares
-          (expense_id, participant_name, participant_user_id, participant_phone, share_type, share_amount, percentage_share, paid_amount, is_registered, invite_status)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          (expense_id, participant_name, participant_user_id, participant_phone, participant_email, share_type, share_amount, percentage_share, paid_amount, is_registered, invite_status)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             result.insertId,
             participant.name,
             participantUserId,
             participant.phone || null,
+            participant.email || null,
             participant.shareType || "equal",
             participant.shareAmount || 0,
             participant.percentageShare || null,
@@ -178,7 +179,7 @@ async function getExpenses(userId, filters) {
 
 async function getSplitSettlements(expenseId) {
   const [shares] = await pool.query(
-    `SELECT participant_name, participant_user_id, share_amount, paid_amount, is_registered, invite_status
+    `SELECT participant_name, participant_user_id, participant_phone, participant_email, share_amount, paid_amount, is_registered, invite_status
      FROM expense_shares
      WHERE expense_id = ?`,
     [expenseId]
@@ -191,6 +192,8 @@ async function getSplitSettlements(expenseId) {
   return shares.map((share) => ({
     participantName: share.participant_name,
     participantUserId: share.participant_user_id,
+    participantPhone: share.participant_phone,
+    participantEmail: share.participant_email,
     shareAmount: Number(share.share_amount),
     paidAmount: Number(share.paid_amount),
     isRegistered: Boolean(share.is_registered),
@@ -199,8 +202,122 @@ async function getSplitSettlements(expenseId) {
   }));
 }
 
+async function settleSplitExpense(userId, expenseId, payload) {
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [[expense]] = await connection.query(
+      `SELECT id, user_id, notes, expense_date
+       FROM expenses
+       WHERE id = ?`,
+      [expenseId]
+    );
+
+    if (!expense) {
+      throw new ApiError(404, "Split expense not found");
+    }
+
+    const [shares] = await connection.query(
+      `SELECT id, participant_name, participant_user_id, share_amount, paid_amount
+       FROM expense_shares
+       WHERE expense_id = ?`,
+      [expenseId]
+    );
+
+    if (!shares.length) {
+      throw new ApiError(404, "Split participants not found");
+    }
+
+    const targetShare = shares.find((share) => {
+      if (payload.participantUserId) {
+        return Number(share.participant_user_id) === Number(payload.participantUserId);
+      }
+      return (
+        String(share.participant_name).trim().toLowerCase() ===
+        String(payload.participantName || "").trim().toLowerCase()
+      );
+    });
+
+    if (!targetShare) {
+      throw new ApiError(404, "Participant not found in this split");
+    }
+
+    const amount = Number(payload.amount || 0);
+    if (!amount || amount <= 0) {
+      throw new ApiError(400, "Settlement amount is required");
+    }
+
+    const nextPaidAmount = Math.min(
+      Number(targetShare.share_amount || 0),
+      Number(targetShare.paid_amount || 0) + amount
+    );
+
+    await connection.query(
+      `UPDATE expense_shares
+       SET paid_amount = ?
+       WHERE id = ?`,
+      [nextPaidAmount, targetShare.id]
+    );
+
+    if (expense.user_id && Number(expense.user_id) !== Number(userId)) {
+      await createTimelineEvent(connection, {
+        userId: expense.user_id,
+        eventType: TIMELINE_TYPES.SPLIT_EXPENSE,
+        title: "Split settlement received",
+        subtitle: targetShare.participant_name,
+        amount,
+        eventDate: payload.paymentDate || expense.expense_date,
+        referenceTable: "expenses",
+        referenceId: expenseId,
+        metadata: {
+          settlement: true,
+          participantUserId: targetShare.participant_user_id,
+          participantName: targetShare.participant_name,
+          paidAmount: nextPaidAmount,
+          shareAmount: Number(targetShare.share_amount || 0),
+        },
+      });
+    }
+
+    if (targetShare.participant_user_id && Number(targetShare.participant_user_id) !== Number(userId)) {
+      await createTimelineEvent(connection, {
+        userId: targetShare.participant_user_id,
+        eventType: TIMELINE_TYPES.SPLIT_EXPENSE,
+        title: "Split settled",
+        subtitle: expense.notes || targetShare.participant_name,
+        amount,
+        eventDate: payload.paymentDate || expense.expense_date,
+        referenceTable: "expenses",
+        referenceId: expenseId,
+        metadata: {
+          settlement: true,
+          paidAmount: nextPaidAmount,
+          shareAmount: Number(targetShare.share_amount || 0),
+        },
+      });
+    }
+
+    await connection.commit();
+
+    return {
+      participantName: targetShare.participant_name,
+      paidAmount: nextPaidAmount,
+      shareAmount: Number(targetShare.share_amount || 0),
+      message: "Split settled successfully",
+    };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
 module.exports = {
   createExpense,
   getExpenses,
   getSplitSettlements,
+  settleSplitExpense,
 };

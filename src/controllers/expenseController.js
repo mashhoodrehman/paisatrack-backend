@@ -16,8 +16,14 @@ const getSplitSettlements = asyncHandler(async (req, res) => {
   res.json({ success: true, data });
 });
 
+const settleSplitExpense = asyncHandler(async (req, res) => {
+  const data = await expenseService.settleSplitExpense(req.user.id, req.params.id, req.body);
+  res.json({ success: true, data });
+});
+
 module.exports = {
   createExpense,
   getExpenses,
-  getSplitSettlements
+  getSplitSettlements,
+  settleSplitExpense
 };
