@@ -11,8 +11,8 @@ async function createExpense(userId, payload) {
 
     const [result] = await connection.query(
       `INSERT INTO expenses
-      (user_id, group_id, amount, category_id, payment_method_id, payment_account, expense_date, notes, receipt_url, is_credit_card, credit_card_id, created_via)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (user_id, group_id, amount, category_id, payment_method_id, payment_account, expense_date, notes, receipt_url, is_credit_card, credit_card_id, reflect_in_net, created_via)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         userId,
         payload.groupId || null,
@@ -25,7 +25,8 @@ async function createExpense(userId, payload) {
         payload.receiptUrl || null,
         payload.isCreditCard ? 1 : 0,
         payload.creditCardId || null,
-        payload.createdVia || "manual"
+        payload.reflectInNet === false ? 0 : 1,
+        payload.createdVia || "manual",
       ]
     );
 
@@ -57,26 +58,69 @@ async function createExpense(userId, payload) {
       metadata: {
         categoryId: payload.categoryId,
         groupId: payload.groupId || null,
-        createdVia: payload.createdVia || "manual"
-      }
+        createdVia: payload.createdVia || "manual",
+        reflectInNet: payload.reflectInNet !== false,
+      },
     });
 
     if (payload.splitParticipants?.length) {
       for (const participant of payload.splitParticipants) {
+        let participantUserId = participant.userId || null;
+        let isRegistered = 0;
+        let inviteStatus = participant.inviteStatus || "none";
+
+        if (!participantUserId && (participant.username || participant.email || participant.phone)) {
+          const [matches] = await connection.query(
+            `SELECT id FROM users
+             WHERE username = COALESCE(?, username)
+                OR email = COALESCE(?, email)
+                OR phone_number = COALESCE(?, phone_number)
+             LIMIT 1`,
+            [participant.username || null, participant.email || null, participant.phone || null]
+          );
+          participantUserId = matches[0]?.id || null;
+        }
+
+        if (participantUserId) {
+          isRegistered = 1;
+          inviteStatus = participantUserId === userId ? "accepted" : inviteStatus || "accepted";
+        }
+
         await connection.query(
           `INSERT INTO expense_shares
-          (expense_id, participant_name, participant_phone, share_type, share_amount, percentage_share, paid_amount)
-          VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          (expense_id, participant_name, participant_user_id, participant_phone, share_type, share_amount, percentage_share, paid_amount, is_registered, invite_status)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             result.insertId,
             participant.name,
+            participantUserId,
             participant.phone || null,
             participant.shareType || "equal",
             participant.shareAmount || 0,
             participant.percentageShare || null,
-            participant.paidAmount || 0
+            participant.paidAmount || 0,
+            isRegistered,
+            inviteStatus,
           ]
         );
+
+        if (participantUserId && Number(participantUserId) !== Number(userId)) {
+          await createTimelineEvent(connection, {
+            userId: participantUserId,
+            eventType: TIMELINE_TYPES.SPLIT_EXPENSE,
+            title: "You were added to a split",
+            subtitle: payload.notes || participant.name,
+            amount: participant.shareAmount || 0,
+            eventDate: payload.date,
+            referenceTable: "expenses",
+            referenceId: result.insertId,
+            metadata: {
+              ownerUserId: userId,
+              splitShare: participant.shareAmount || 0,
+              paidAmount: participant.paidAmount || 0,
+            },
+          });
+        }
       }
     }
 
@@ -92,8 +136,16 @@ async function createExpense(userId, payload) {
 }
 
 async function getExpenses(userId, filters) {
-  const conditions = ["e.user_id = ?"];
-  const params = [userId];
+  const params = [];
+  const joinShared = filters.type === "split";
+  const userCondition = joinShared
+    ? `(e.user_id = ? OR EXISTS (SELECT 1 FROM expense_shares shared_es WHERE shared_es.expense_id = e.id AND shared_es.participant_user_id = ?))`
+    : `e.user_id = ?`;
+
+  params.push(userId);
+  if (joinShared) params.push(userId);
+
+  const conditions = [userCondition];
 
   if (filters.categoryId) {
     conditions.push("e.category_id = ?");
@@ -126,7 +178,7 @@ async function getExpenses(userId, filters) {
 
 async function getSplitSettlements(expenseId) {
   const [shares] = await pool.query(
-    `SELECT participant_name, share_amount, paid_amount
+    `SELECT participant_name, participant_user_id, share_amount, paid_amount, is_registered, invite_status
      FROM expense_shares
      WHERE expense_id = ?`,
     [expenseId]
@@ -138,14 +190,17 @@ async function getSplitSettlements(expenseId) {
 
   return shares.map((share) => ({
     participantName: share.participant_name,
+    participantUserId: share.participant_user_id,
     shareAmount: Number(share.share_amount),
     paidAmount: Number(share.paid_amount),
-    netSettlement: Number(share.paid_amount) - Number(share.share_amount)
+    isRegistered: Boolean(share.is_registered),
+    inviteStatus: share.invite_status,
+    netSettlement: Number(share.paid_amount) - Number(share.share_amount),
   }));
 }
 
 module.exports = {
   createExpense,
   getExpenses,
-  getSplitSettlements
+  getSplitSettlements,
 };

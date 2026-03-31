@@ -4,7 +4,7 @@ module.exports = {
       name: "paisatrack-api",
       script: "./src/server.js",
       cwd: "/Users/mmr/Herd/MMR/money-track-backend",
-      interpreter: "node",
+      interpreter: "/opt/homebrew/bin/node",
       watch: false,
       autorestart: true,
       env: {
