@@ -8,6 +8,8 @@ async function updateSetup(userId, payload) {
          username = COALESCE(?, username),
          monthly_income = COALESCE(?, monthly_income),
          income_source = COALESCE(?, income_source),
+         income_profile_type = COALESCE(?, income_profile_type),
+         income_frequency = COALESCE(?, income_frequency),
          currency_code = COALESCE(?, currency_code)
      WHERE id = ?`,
     [
@@ -15,13 +17,15 @@ async function updateSetup(userId, payload) {
       payload.username || null,
       payload.monthlyIncome || null,
       payload.incomeSource || null,
+      payload.incomeType || null,
+      payload.incomeCadence || null,
       payload.currencyCode || null,
       userId,
     ]
   );
 
   const [rows] = await pool.query(
-    "SELECT id, full_name, username, phone_number, email, email_verified_at, monthly_income, income_source, currency_code FROM users WHERE id = ?",
+    "SELECT id, full_name, username, phone_number, email, email_verified_at, monthly_income, income_source, income_profile_type, income_frequency, currency_code FROM users WHERE id = ?",
     [userId]
   );
 
@@ -30,7 +34,7 @@ async function updateSetup(userId, payload) {
 
 async function getSettings(userId) {
   const [userRows] = await pool.query(
-    `SELECT id, full_name, username, phone_number, email, email_verified_at, monthly_income, income_source, currency_code, language_code,
+    `SELECT id, full_name, username, phone_number, email, email_verified_at, monthly_income, income_source, income_profile_type, income_frequency, currency_code, language_code,
             notifications_enabled, whatsapp_sharing_enabled, is_premium
      FROM users WHERE id = ?`,
     [userId]
@@ -46,7 +50,9 @@ async function updateSettings(userId, payload) {
          notifications_enabled = COALESCE(?, notifications_enabled),
          whatsapp_sharing_enabled = COALESCE(?, whatsapp_sharing_enabled),
          is_premium = COALESCE(?, is_premium),
-         income_source = COALESCE(?, income_source)
+         income_source = COALESCE(?, income_source),
+         income_profile_type = COALESCE(?, income_profile_type),
+         income_frequency = COALESCE(?, income_frequency)
      WHERE id = ?`,
     [
       payload.currencyCode,
@@ -55,6 +61,8 @@ async function updateSettings(userId, payload) {
       payload.whatsappSharingEnabled,
       payload.isPremium,
       payload.incomeSource,
+      payload.incomeType,
+      payload.incomeCadence,
       userId,
     ]
   );

@@ -2,7 +2,7 @@ const pool = require("../db/pool");
 
 async function getDashboard(userId) {
   const [[user]] = await pool.query(
-    "SELECT full_name, username, monthly_income, income_source, currency_code FROM users WHERE id = ?",
+    "SELECT full_name, username, monthly_income, income_source, income_profile_type, income_frequency, currency_code FROM users WHERE id = ?",
     [userId]
   );
 
@@ -66,7 +66,9 @@ async function getDashboard(userId) {
     [userId]
   );
 
-  const totalIncome = Number(user.monthly_income || 0) + Number(incomeSummary.extra_income || 0);
+  const recurringIncome =
+    user.income_frequency === "monthly" ? Number(user.monthly_income || 0) : 0;
+  const totalIncome = recurringIncome + Number(incomeSummary.extra_income || 0);
 
   const netBalance =
     totalIncome -
@@ -94,6 +96,8 @@ async function getDashboard(userId) {
     monthlyIncome: Number(user.monthly_income || 0),
     extraIncome: Number(incomeSummary.extra_income || 0),
     incomeSource: user.income_source || "Salary",
+    incomeType: user.income_profile_type || "salary",
+    incomeCadence: user.income_frequency || "monthly",
     monthlyExpenses: Number(expenseSummary.monthly_expenses || 0),
     borrowedOutstanding: Number(borrowSummary.borrowed || 0),
     lentOutstanding: Number(borrowSummary.lent || 0),

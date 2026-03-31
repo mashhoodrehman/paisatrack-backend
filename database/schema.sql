@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS users (
   email_verification_expires_at TIMESTAMP NULL,
   monthly_income DECIMAL(12,2) DEFAULT 0,
   income_source VARCHAR(120) DEFAULT 'Salary',
+  income_profile_type ENUM('salary', 'business', 'freelance', 'daily_wage', 'other') DEFAULT 'salary',
+  income_frequency ENUM('monthly', 'weekly', 'daily', 'irregular') DEFAULT 'monthly',
   currency_code VARCHAR(10) DEFAULT 'PKR',
   language_code VARCHAR(10) DEFAULT 'en',
   notifications_enabled TINYINT(1) DEFAULT 1,

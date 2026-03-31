@@ -25,7 +25,7 @@ async function getReports(userId) {
 
   const [[summary]] = await pool.query(
     `SELECT
-      (SELECT COALESCE(monthly_income, 0) FROM users WHERE id = ?) +
+      (SELECT CASE WHEN income_frequency = 'monthly' THEN COALESCE(monthly_income, 0) ELSE 0 END FROM users WHERE id = ?) +
       (SELECT COALESCE(SUM(amount), 0) FROM income_entries WHERE user_id = ?) AS income,
       (SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE user_id = ? AND reflect_in_net = 1) AS expenses,
       (SELECT COALESCE(SUM(CASE WHEN record_type = 'borrow' AND status != 'paid' AND reflect_in_net = 1 THEN amount ELSE 0 END), 0) FROM borrow_lend_records WHERE user_id = ?) AS borrowed,
