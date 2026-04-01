@@ -4,6 +4,7 @@ const bcrypt = require("bcryptjs");
 const pool = require("../db/pool");
 const ApiError = require("../utils/ApiError");
 const { sendOtpMail } = require("./mailService");
+const { reconcileGuestRecordsForUser } = require("./borrowLendService");
 
 function createToken(user) {
   return jwt.sign(
@@ -74,6 +75,8 @@ async function verifyOtp(phoneNumber, otpCode) {
     ]);
     user = newUserRows[0];
   }
+
+  await reconcileGuestRecordsForUser(user);
 
   return {
     token: createToken(user),
@@ -156,6 +159,8 @@ async function verifyEmailOtp(email, otpCode) {
   const [updatedUserRows] = await pool.query("SELECT * FROM users WHERE id = ?", [user.id]);
   const updatedUser = updatedUserRows[0];
 
+  await reconcileGuestRecordsForUser(updatedUser);
+
   return {
     token: createToken(updatedUser),
     user: sanitizeUser(updatedUser)
@@ -180,6 +185,8 @@ async function login(username, password) {
   if (!isValid) {
     throw new ApiError(401, "Invalid credentials");
   }
+
+  await reconcileGuestRecordsForUser(user);
 
   return {
     token: createToken(user),
@@ -220,6 +227,8 @@ async function loginWithGoogle(payload) {
     ]);
     user = newUserRows[0];
   }
+
+  await reconcileGuestRecordsForUser(user);
 
   return {
     token: createToken(user),

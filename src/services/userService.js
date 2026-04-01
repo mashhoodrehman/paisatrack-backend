@@ -218,6 +218,16 @@ async function getReminders(userId) {
     [userId]
   );
 
+  const [recurringAlerts] = await pool.query(
+    `SELECT id, title, amount, next_due_date, category_name, payment_account
+     FROM recurring_payments
+     WHERE user_id = ?
+       AND reminder_days_before >= 0
+       AND next_due_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL GREATEST(reminder_days_before, 0) DAY)
+     ORDER BY next_due_date ASC`,
+    [userId]
+  );
+
   return {
     stored: storedReminders,
     dueBorrowReturns: borrowAlerts.map((item) => ({
@@ -227,6 +237,15 @@ async function getReminders(userId) {
       message: `You have to settle ${item.person_name} by ${item.return_date}`,
       amount: Number(item.amount || 0),
       dueDate: item.return_date,
+    })),
+    recurringPayments: recurringAlerts.map((item) => ({
+      id: item.id,
+      reminderType: "recurring_payment",
+      title: `${item.title} payment due`,
+      message: `It's time to pay ${item.title}${item.category_name ? ` for ${item.category_name}` : ""} by ${item.next_due_date} using ${item.payment_account || "your selected method"}.`,
+      amount: Number(item.amount || 0),
+      dueDate: item.next_due_date,
+      category: item.category_name || "Other",
     })),
   };
 }
