@@ -129,6 +129,8 @@ CREATE TABLE IF NOT EXISTS borrow_lend_records (
   return_date DATE NULL,
   status ENUM('pending', 'partial', 'paid') DEFAULT 'pending',
   person_user_id INT NULL,
+  person_phone VARCHAR(30) NULL,
+  person_email VARCHAR(150) NULL,
   payment_method_id INT NULL,
   payment_account VARCHAR(120),
   credit_card_id INT NULL,
@@ -180,7 +182,10 @@ CREATE TABLE IF NOT EXISTS recurring_payments (
   title VARCHAR(150) NOT NULL,
   amount DECIMAL(12,2) NOT NULL,
   frequency ENUM('weekly', 'monthly', 'yearly') NOT NULL,
+  start_date DATE NOT NULL,
   next_due_date DATE NOT NULL,
+  category_name VARCHAR(100) DEFAULT 'Other',
+  payment_account VARCHAR(120) DEFAULT 'Cash',
   reminder_days_before INT DEFAULT 3,
   notes VARCHAR(255),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -319,6 +324,20 @@ SET @stmt = IF(
   "ALTER TABLE borrow_lend_records ADD COLUMN payment_method_id INT NULL"
 );
 PREPARE s7 FROM @stmt; EXECUTE s7; DEALLOCATE PREPARE s7;
+
+SET @stmt = IF(
+  EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'borrow_lend_records' AND column_name = 'person_phone'),
+  'SELECT 1',
+  "ALTER TABLE borrow_lend_records ADD COLUMN person_phone VARCHAR(30) NULL"
+);
+PREPARE s7a FROM @stmt; EXECUTE s7a; DEALLOCATE PREPARE s7a;
+
+SET @stmt = IF(
+  EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'borrow_lend_records' AND column_name = 'person_email'),
+  'SELECT 1',
+  "ALTER TABLE borrow_lend_records ADD COLUMN person_email VARCHAR(150) NULL"
+);
+PREPARE s7b FROM @stmt; EXECUTE s7b; DEALLOCATE PREPARE s7b;
 
 SET @stmt = IF(
   EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'borrow_lend_records' AND column_name = 'payment_account'),

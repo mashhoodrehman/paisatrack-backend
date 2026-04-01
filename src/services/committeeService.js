@@ -1,4 +1,5 @@
 const pool = require("../db/pool");
+const ApiError = require("../utils/ApiError");
 const { TIMELINE_TYPES } = require("../config/constants");
 const { createTimelineEvent } = require("./timelineService");
 
@@ -30,16 +31,37 @@ async function createCommittee(userId, payload) {
     );
 
     for (const member of payload.members || []) {
+      let memberUserId = member.userId || null;
+
+      if (!memberUserId && (member.email || member.phone)) {
+        const [matches] = await connection.query(
+          `SELECT id, full_name, phone_number, email
+           FROM users
+           WHERE (? IS NOT NULL AND email = ?)
+              OR (? IS NOT NULL AND phone_number = ?)
+           LIMIT 1`,
+          [member.email || null, member.email || null, member.phone || null, member.phone || null]
+        );
+
+        if (matches[0]) {
+          memberUserId = matches[0].id;
+          member.name = matches[0].full_name || member.name;
+          member.phone = matches[0].phone_number || member.phone;
+          member.email = matches[0].email || member.email;
+        }
+      }
+
       await connection.query(
-        `INSERT INTO committee_members (committee_id, member_name, member_phone, user_id, is_guest, is_registered)
-         VALUES (?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO committee_members (committee_id, member_name, member_phone, member_email, user_id, is_guest, is_registered)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [
           result.insertId,
           member.name,
           member.phone || null,
-          member.userId || null,
-          member.isGuest ? 1 : 0,
-          member.isRegistered ? 1 : 0,
+          member.email || null,
+          memberUserId,
+          member.isGuest && !memberUserId ? 1 : 0,
+          memberUserId || member.isRegistered ? 1 : 0,
         ]
       );
     }
@@ -55,42 +77,119 @@ async function createCommittee(userId, payload) {
 }
 
 async function createInstallment(userId, committeeId, payload) {
-  const [result] = await pool.query(
-    `INSERT INTO committee_installments
-     (committee_id, paid_by_member, amount, installment_date, month_label, payment_method_id, payment_account, credit_card_id, reflect_in_net, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      committeeId,
-      payload.paidByMember,
-      payload.amount,
-      payload.date,
-      payload.monthLabel || null,
-      payload.paymentMethodId || null,
-      payload.paymentAccount || null,
-      payload.creditCardId || null,
-      payload.reflectInNet === false ? 0 : 1,
-      payload.notes || null,
-    ]
-  );
+  const connection = await pool.getConnection();
 
-  await createTimelineEvent(null, {
-    userId,
-    eventType: TIMELINE_TYPES.COMMITTEE_INSTALLMENT,
-    title: "Committee installment paid",
-    subtitle: payload.paidByMember,
-    amount: payload.amount,
-    eventDate: payload.date,
-    referenceTable: "committee_installments",
-    referenceId: result.insertId,
-    metadata: payload,
-  });
+  try {
+    await connection.beginTransaction();
 
-  return { id: result.insertId, message: "Committee installment added successfully" };
+    const [[committee]] = await connection.query(
+      `SELECT c.*
+       FROM committees c
+       LEFT JOIN committee_members cm ON cm.committee_id = c.id
+       WHERE c.id = ? AND (c.user_id = ? OR cm.user_id = ?)
+       LIMIT 1`,
+      [committeeId, userId, userId]
+    );
+
+    if (!committee) {
+      throw new ApiError(404, "Committee not found");
+    }
+
+    let paidByMemberId = payload.paidByMemberId || null;
+    let paidByMember = payload.paidByMember || null;
+
+    if (paidByMemberId) {
+      const [[member]] = await connection.query(
+        "SELECT id, member_name, user_id FROM committee_members WHERE committee_id = ? AND user_id = ? LIMIT 1",
+        [committeeId, paidByMemberId]
+      );
+      if (!member) {
+        throw new ApiError(404, "Selected committee member was not found");
+      }
+      paidByMember = member.member_name;
+      paidByMemberId = member.user_id || paidByMemberId;
+    } else if (paidByMember) {
+      const [[member]] = await connection.query(
+        "SELECT id, member_name, user_id FROM committee_members WHERE committee_id = ? AND member_name = ? LIMIT 1",
+        [committeeId, paidByMember]
+      );
+      if (member) {
+        paidByMember = member.member_name;
+        paidByMemberId = member.user_id || null;
+      }
+    }
+
+    if (!paidByMember) {
+      throw new ApiError(400, "Paid by member is required");
+    }
+
+    const [result] = await connection.query(
+      `INSERT INTO committee_installments
+       (committee_id, paid_by_member, paid_by_member_id, recorded_by_user_id, amount, installment_date, month_label, payment_method_id, payment_account, credit_card_id, reflect_in_net, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        committeeId,
+        paidByMember,
+        paidByMemberId,
+        userId,
+        payload.amount,
+        payload.date,
+        payload.monthLabel || null,
+        payload.paymentMethodId || null,
+        payload.paymentAccount || null,
+        payload.creditCardId || null,
+        payload.reflectInNet === false ? 0 : 1,
+        payload.notes || null,
+      ]
+    );
+
+    const [audience] = await connection.query(
+      `SELECT DISTINCT target_user_id
+       FROM (
+         SELECT c.user_id AS target_user_id FROM committees c WHERE c.id = ?
+         UNION
+         SELECT cm.user_id AS target_user_id FROM committee_members cm WHERE cm.committee_id = ? AND cm.user_id IS NOT NULL
+       ) members`,
+      [committeeId, committeeId]
+    );
+
+    for (const target of audience) {
+      await createTimelineEvent(connection, {
+        userId: target.target_user_id,
+        eventType: TIMELINE_TYPES.COMMITTEE_INSTALLMENT,
+        title: "Committee installment paid",
+        subtitle: paidByMember,
+        amount: payload.amount,
+        eventDate: payload.date,
+        referenceTable: "committee_installments",
+        referenceId: result.insertId,
+        metadata: {
+          ...payload,
+          committeeId,
+          paidByMember,
+          paidByMemberId,
+          recordedByUserId: userId,
+        },
+      });
+    }
+
+    await connection.commit();
+    return { id: result.insertId, message: "Committee installment added successfully" };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
 
 async function getCommittees(userId) {
   const [rows] = await pool.query(
-    "SELECT * FROM committees WHERE user_id = ? ORDER BY id DESC",
+    `SELECT DISTINCT c.*
+     FROM committees c
+     LEFT JOIN committee_members cm ON cm.committee_id = c.id
+     WHERE c.user_id = ? OR cm.user_id = ?
+     ORDER BY c.id DESC`,
     [userId]
   );
 
@@ -101,9 +200,10 @@ async function getCommittees(userId) {
       [committee.id]
     );
     const [installments] = await pool.query(
-      `SELECT ci.*, pm.name AS payment_method_name
+      `SELECT ci.*, pm.name AS payment_method_name, recorder.full_name AS recorded_by_name
        FROM committee_installments ci
        LEFT JOIN payment_methods pm ON pm.id = ci.payment_method_id
+       LEFT JOIN users recorder ON recorder.id = ci.recorded_by_user_id
        WHERE ci.committee_id = ?
        ORDER BY ci.installment_date DESC, ci.id DESC`,
       [committee.id]
