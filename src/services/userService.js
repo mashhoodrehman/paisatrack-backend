@@ -193,6 +193,19 @@ async function addIncomeEntry(userId, payload) {
   return { id: result.insertId, message: "Income entry created successfully" };
 }
 
+async function deleteIncomeEntry(userId, incomeId) {
+  const [result] = await pool.query(
+    "DELETE FROM income_entries WHERE id = ? AND user_id = ?",
+    [incomeId, userId]
+  );
+
+  if (!result.affectedRows) {
+    throw new ApiError(404, "Income entry not found");
+  }
+
+  return { id: Number(incomeId), message: "Income entry deleted successfully" };
+}
+
 async function getIncomeEntries(userId) {
   const [rows] = await pool.query(
     `SELECT id, source, amount, income_date, notes, created_at
@@ -228,8 +241,40 @@ async function getReminders(userId) {
     [userId]
   );
 
+  const [cardRows] = await pool.query(
+    `SELECT id, bank_name, last_four_digits, due_day, outstanding_balance
+     FROM credit_cards
+     WHERE user_id = ? AND outstanding_balance > 0`,
+    [userId]
+  );
+
+  const today = new Date();
+  const creditCardBills = cardRows
+    .map((card) => {
+      // Next occurrence of the due day, on/after today.
+      let due = new Date(today.getFullYear(), today.getMonth(), Number(card.due_day || 1));
+      due.setHours(0, 0, 0, 0);
+      const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      if (due.getTime() < startOfToday.getTime()) {
+        due = new Date(today.getFullYear(), today.getMonth() + 1, Number(card.due_day || 1));
+      }
+      const daysUntil = Math.ceil((due.getTime() - startOfToday.getTime()) / (1000 * 60 * 60 * 24));
+      return {
+        id: card.id,
+        reminderType: "credit_card_bill",
+        title: `${card.bank_name} card bill due`,
+        message: `Pay PKR ${Number(card.outstanding_balance).toLocaleString()} on your ${card.bank_name} card ···${card.last_four_digits} by ${due.toISOString().slice(0, 10)}.`,
+        amount: Number(card.outstanding_balance || 0),
+        dueDate: due.toISOString().slice(0, 10),
+        daysUntil,
+      };
+    })
+    .filter((item) => item.daysUntil >= 0 && item.daysUntil <= 5)
+    .sort((a, b) => a.daysUntil - b.daysUntil);
+
   return {
     stored: storedReminders,
+    creditCardBills,
     dueBorrowReturns: borrowAlerts.map((item) => ({
       id: item.id,
       reminderType: "borrow_return",
@@ -259,6 +304,7 @@ module.exports = {
   acceptFriendRequest,
   getFriends,
   addIncomeEntry,
+  deleteIncomeEntry,
   getIncomeEntries,
   getReminders,
 };

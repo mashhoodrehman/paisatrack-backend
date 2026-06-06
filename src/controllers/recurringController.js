@@ -11,7 +11,13 @@ const getRecurringPayments = asyncHandler(async (req, res) => {
   res.json({ success: true, data });
 });
 
+const deleteRecurringPayment = asyncHandler(async (req, res) => {
+  const data = await service.deleteRecurringPayment(req.user.id, req.params.id);
+  res.json({ success: true, data });
+});
+
 module.exports = {
   createRecurringPayment,
-  getRecurringPayments
+  getRecurringPayments,
+  deleteRecurringPayment
 };

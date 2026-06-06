@@ -8,5 +8,6 @@ const router = express.Router();
 router.use(protect);
 router.post("/", controller.createRecurringPayment);
 router.get("/", controller.getRecurringPayments);
+router.delete("/:id", controller.deleteRecurringPayment);
 
 module.exports = router;

@@ -41,6 +41,11 @@ const addIncomeEntry = asyncHandler(async (req, res) => {
   res.status(201).json({ success: true, data });
 });
 
+const deleteIncomeEntry = asyncHandler(async (req, res) => {
+  const data = await userService.deleteIncomeEntry(req.user.id, req.params.id);
+  res.json({ success: true, data });
+});
+
 const getIncomeEntries = asyncHandler(async (req, res) => {
   const data = await userService.getIncomeEntries(req.user.id);
   res.json({ success: true, data });
@@ -60,6 +65,7 @@ module.exports = {
   acceptFriendRequest,
   getFriends,
   addIncomeEntry,
+  deleteIncomeEntry,
   getIncomeEntries,
   getReminders,
 };

@@ -14,6 +14,7 @@ router.post("/friends/requests", protect, controller.sendFriendRequest);
 router.post("/friends/requests/:id/accept", protect, controller.acceptFriendRequest);
 router.get("/income", protect, controller.getIncomeEntries);
 router.post("/income", protect, controller.addIncomeEntry);
+router.delete("/income/:id", protect, controller.deleteIncomeEntry);
 router.get("/reminders", protect, controller.getReminders);
 
 module.exports = router;
