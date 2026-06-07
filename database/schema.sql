@@ -212,6 +212,7 @@ CREATE TABLE IF NOT EXISTS committee_members (
   committee_id INT NOT NULL,
   member_name VARCHAR(120) NOT NULL,
   member_phone VARCHAR(30),
+  member_email VARCHAR(150),
   user_id INT NULL,
   is_guest TINYINT(1) DEFAULT 0,
   is_registered TINYINT(1) DEFAULT 0,
