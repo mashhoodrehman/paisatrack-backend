@@ -1,4 +1,5 @@
 const pool = require("../db/pool");
+const ApiError = require("../utils/ApiError");
 const { TIMELINE_TYPES } = require("../config/constants");
 const { createTimelineEvent } = require("./timelineService");
 
@@ -110,9 +111,55 @@ async function getVendorEntries(vendorId) {
   return rows;
 }
 
+async function deleteEntry(userId, vendorId, entryId) {
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [[entry]] = await connection.query(
+      `SELECT vle.*, vl.user_id
+       FROM vendor_ledger_entries vle
+       JOIN vendor_ledgers vl ON vl.id = vle.vendor_ledger_id
+       WHERE vle.id = ? AND vle.vendor_ledger_id = ? AND vl.user_id = ?
+       LIMIT 1`,
+      [entryId, vendorId, userId]
+    );
+
+    if (!entry) {
+      throw new ApiError(404, "Parchi entry not found");
+    }
+
+    const originalDelta = entry.entry_type === "payment" || entry.status === "paid"
+      ? -Number(entry.amount || 0)
+      : Number(entry.amount || 0);
+
+    await connection.query(
+      `UPDATE vendor_ledgers
+       SET balance_amount = GREATEST(balance_amount - ?, 0)
+       WHERE id = ? AND user_id = ?`,
+      [originalDelta, vendorId, userId]
+    );
+    await connection.query(
+      "DELETE FROM financial_timeline WHERE reference_table = 'vendor_ledger_entries' AND reference_id = ?",
+      [entryId]
+    );
+    await connection.query("DELETE FROM vendor_ledger_entries WHERE id = ?", [entryId]);
+
+    await connection.commit();
+    return { id: Number(entryId), message: "Parchi entry deleted successfully" };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
 module.exports = {
   createVendor,
   createEntry,
+  deleteEntry,
   getVendors,
   getVendorEntries,
 };

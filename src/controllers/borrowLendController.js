@@ -11,7 +11,13 @@ const getRecords = asyncHandler(async (req, res) => {
   res.json({ success: true, data });
 });
 
+const deleteRecord = asyncHandler(async (req, res) => {
+  const data = await service.deleteRecord(req.user.id, req.params.id);
+  res.json({ success: true, data });
+});
+
 module.exports = {
   createRecord,
-  getRecords
+  getRecords,
+  deleteRecord
 };

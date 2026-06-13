@@ -224,6 +224,8 @@ CREATE TABLE IF NOT EXISTS committee_installments (
   id INT PRIMARY KEY AUTO_INCREMENT,
   committee_id INT NOT NULL,
   paid_by_member VARCHAR(120) NOT NULL,
+  paid_by_member_id INT NULL,
+  recorded_by_user_id INT NULL,
   amount DECIMAL(12,2) NOT NULL,
   installment_date DATE NOT NULL,
   month_label VARCHAR(20),
@@ -235,6 +237,8 @@ CREATE TABLE IF NOT EXISTS committee_installments (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (payment_method_id) REFERENCES payment_methods(id) ON DELETE SET NULL,
   FOREIGN KEY (credit_card_id) REFERENCES credit_cards(id) ON DELETE SET NULL,
+  FOREIGN KEY (paid_by_member_id) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (recorded_by_user_id) REFERENCES users(id) ON DELETE SET NULL,
   FOREIGN KEY (committee_id) REFERENCES committees(id) ON DELETE CASCADE
 );
 

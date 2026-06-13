@@ -11,6 +11,11 @@ const getExpenses = asyncHandler(async (req, res) => {
   res.json({ success: true, data });
 });
 
+const deleteExpense = asyncHandler(async (req, res) => {
+  const data = await expenseService.deleteExpense(req.user.id, req.params.id);
+  res.json({ success: true, data });
+});
+
 const getSplitSettlements = asyncHandler(async (req, res) => {
   const data = await expenseService.getSplitSettlements(req.params.id);
   res.json({ success: true, data });
@@ -24,6 +29,7 @@ const settleSplitExpense = asyncHandler(async (req, res) => {
 module.exports = {
   createExpense,
   getExpenses,
+  deleteExpense,
   getSplitSettlements,
   settleSplitExpense
 };

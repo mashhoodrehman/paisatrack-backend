@@ -11,6 +11,11 @@ const createEntry = asyncHandler(async (req, res) => {
   res.status(201).json({ success: true, data });
 });
 
+const deleteEntry = asyncHandler(async (req, res) => {
+  const data = await service.deleteEntry(req.user.id, req.params.vendorId, req.params.entryId);
+  res.json({ success: true, data });
+});
+
 const getVendors = asyncHandler(async (req, res) => {
   const data = await service.getVendors(req.user.id);
   res.json({ success: true, data });
@@ -24,6 +29,7 @@ const getVendorEntries = asyncHandler(async (req, res) => {
 module.exports = {
   createVendor,
   createEntry,
+  deleteEntry,
   getVendors,
   getVendorEntries
 };

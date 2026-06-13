@@ -10,5 +10,6 @@ router.post("/vendors", controller.createVendor);
 router.get("/vendors", controller.getVendors);
 router.post("/vendors/:vendorId/entries", controller.createEntry);
 router.get("/vendors/:vendorId/entries", controller.getVendorEntries);
+router.delete("/vendors/:vendorId/entries/:entryId", controller.deleteEntry);
 
 module.exports = router;

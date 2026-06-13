@@ -190,7 +190,7 @@ async function getCommittees(userId) {
      LEFT JOIN committee_members cm ON cm.committee_id = c.id
      WHERE c.user_id = ? OR cm.user_id = ?
      ORDER BY c.id DESC`,
-    [userId]
+    [userId, userId]
   );
 
   const result = [];

@@ -72,11 +72,18 @@ async function createExpense(userId, payload) {
         if (!participantUserId && (participant.username || participant.email || participant.phone)) {
           const [matches] = await connection.query(
             `SELECT id FROM users
-             WHERE username = COALESCE(?, username)
-                OR email = COALESCE(?, email)
-                OR phone_number = COALESCE(?, phone_number)
+             WHERE (? IS NOT NULL AND username = ?)
+                OR (? IS NOT NULL AND email = ?)
+                OR (? IS NOT NULL AND phone_number = ?)
              LIMIT 1`,
-            [participant.username || null, participant.email || null, participant.phone || null]
+            [
+              participant.username || null,
+              participant.username || null,
+              participant.email || null,
+              participant.email || null,
+              participant.phone || null,
+              participant.phone || null,
+            ]
           );
           participantUserId = matches[0]?.id || null;
         }
@@ -176,6 +183,51 @@ async function getExpenses(userId, filters) {
   );
 
   return rows;
+}
+
+async function deleteExpense(userId, expenseId) {
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [[expense]] = await connection.query(
+      `SELECT id, user_id, amount, is_credit_card, credit_card_id
+       FROM expenses
+       WHERE id = ? AND user_id = ?
+       LIMIT 1`,
+      [expenseId, userId]
+    );
+
+    if (!expense) {
+      throw new ApiError(404, "Expense not found");
+    }
+
+    if (expense.is_credit_card && expense.credit_card_id) {
+      await connection.query(
+        `UPDATE credit_cards
+         SET outstanding_balance = GREATEST(outstanding_balance - ?, 0)
+         WHERE id = ? AND user_id = ?`,
+        [expense.amount, expense.credit_card_id, userId]
+      );
+    }
+
+    await connection.query("DELETE FROM expense_shares WHERE expense_id = ?", [expenseId]);
+    await connection.query("DELETE FROM credit_card_transactions WHERE expense_id = ?", [expenseId]);
+    await connection.query(
+      "DELETE FROM financial_timeline WHERE reference_table = 'expenses' AND reference_id = ?",
+      [expenseId]
+    );
+    await connection.query("DELETE FROM expenses WHERE id = ? AND user_id = ?", [expenseId, userId]);
+
+    await connection.commit();
+    return { id: Number(expenseId), message: "Expense deleted successfully" };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
 
 async function getSplitSettlements(expenseId) {
@@ -319,6 +371,7 @@ async function settleSplitExpense(userId, expenseId, payload) {
 module.exports = {
   createExpense,
   getExpenses,
+  deleteExpense,
   getSplitSettlements,
   settleSplitExpense,
 };

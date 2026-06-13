@@ -8,5 +8,6 @@ const router = express.Router();
 router.use(protect);
 router.post("/", controller.createRecord);
 router.get("/", controller.getRecords);
+router.delete("/:id", controller.deleteRecord);
 
 module.exports = router;

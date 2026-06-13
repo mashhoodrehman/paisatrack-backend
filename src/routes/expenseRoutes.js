@@ -8,6 +8,7 @@ const router = express.Router();
 router.use(protect);
 router.post("/", controller.createExpense);
 router.get("/", controller.getExpenses);
+router.delete("/:id", controller.deleteExpense);
 router.get("/:id/settlements", controller.getSplitSettlements);
 router.post("/:id/settle", controller.settleSplitExpense);
 

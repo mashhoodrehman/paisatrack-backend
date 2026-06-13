@@ -141,6 +141,44 @@ async function getRecords(userId) {
   return rows;
 }
 
+async function deleteRecord(userId, recordId) {
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [[record]] = await connection.query(
+      `SELECT id, mirror_record_id
+       FROM borrow_lend_records
+       WHERE id = ? AND user_id = ?
+       LIMIT 1`,
+      [recordId, userId]
+    );
+
+    if (!record) {
+      const ApiError = require("../utils/ApiError");
+      throw new ApiError(404, "Borrow/lend record not found");
+    }
+
+    await connection.query(
+      "DELETE FROM financial_timeline WHERE reference_table = 'borrow_lend_records' AND reference_id IN (?, ?)",
+      [record.id, record.mirror_record_id || 0]
+    );
+    await connection.query(
+      "DELETE FROM borrow_lend_records WHERE id = ? OR mirror_record_id = ?",
+      [record.id, record.id]
+    );
+
+    await connection.commit();
+    return { id: Number(recordId), message: "Borrow/lend record deleted successfully" };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
 async function reconcileGuestRecordsForUser(user) {
   if (!user || !user.id) return;
 
@@ -234,5 +272,6 @@ async function reconcileGuestRecordsForUser(user) {
 module.exports = {
   createRecord,
   getRecords,
+  deleteRecord,
   reconcileGuestRecordsForUser,
 };
