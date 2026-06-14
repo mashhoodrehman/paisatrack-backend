@@ -11,6 +11,11 @@ const getRecurringPayments = asyncHandler(async (req, res) => {
   res.json({ success: true, data });
 });
 
+const getRecurringPaymentHistory = asyncHandler(async (req, res) => {
+  const data = await service.getRecurringPaymentHistory(req.user.id, req.params.id);
+  res.json({ success: true, data });
+});
+
 const deleteRecurringPayment = asyncHandler(async (req, res) => {
   const data = await service.deleteRecurringPayment(req.user.id, req.params.id);
   res.json({ success: true, data });
@@ -19,5 +24,6 @@ const deleteRecurringPayment = asyncHandler(async (req, res) => {
 module.exports = {
   createRecurringPayment,
   getRecurringPayments,
+  getRecurringPaymentHistory,
   deleteRecurringPayment
 };

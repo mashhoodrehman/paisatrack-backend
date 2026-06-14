@@ -570,6 +570,55 @@ CREATE TABLE IF NOT EXISTS financial_timeline (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- Splitwise: link group members to registered users + invite tracking
+SET @stmt = IF(
+  EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'expense_group_members' AND column_name = 'user_id'),
+  'SELECT 1',
+  "ALTER TABLE expense_group_members ADD COLUMN user_id INT NULL"
+);
+PREPARE sg1 FROM @stmt; EXECUTE sg1; DEALLOCATE PREPARE sg1;
+
+SET @stmt = IF(
+  EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'expense_group_members' AND column_name = 'is_registered'),
+  'SELECT 1',
+  "ALTER TABLE expense_group_members ADD COLUMN is_registered TINYINT(1) DEFAULT 0"
+);
+PREPARE sg2 FROM @stmt; EXECUTE sg2; DEALLOCATE PREPARE sg2;
+
+SET @stmt = IF(
+  EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'expense_group_members' AND column_name = 'invite_status'),
+  'SELECT 1',
+  "ALTER TABLE expense_group_members ADD COLUMN invite_status ENUM('none', 'invited', 'accepted') DEFAULT 'none'"
+);
+PREPARE sg3 FROM @stmt; EXECUTE sg3; DEALLOCATE PREPARE sg3;
+
+SET @stmt = IF(
+  EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'expense_group_members' AND column_name = 'is_owner'),
+  'SELECT 1',
+  "ALTER TABLE expense_group_members ADD COLUMN is_owner TINYINT(1) DEFAULT 0"
+);
+PREPARE sg4 FROM @stmt; EXECUTE sg4; DEALLOCATE PREPARE sg4;
+
+-- Splitwise: cash settlements between members (kept separate from original paid amounts)
+CREATE TABLE IF NOT EXISTS expense_settlements (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  group_id INT NULL,
+  expense_id INT NULL,
+  from_user_id INT NULL,
+  from_name VARCHAR(120),
+  to_user_id INT NULL,
+  to_name VARCHAR(120),
+  amount DECIMAL(12,2) NOT NULL,
+  settled_date DATE NOT NULL,
+  recorded_by_user_id INT NULL,
+  notes VARCHAR(255),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (group_id) REFERENCES expense_groups(id) ON DELETE CASCADE,
+  FOREIGN KEY (expense_id) REFERENCES expenses(id) ON DELETE SET NULL,
+  FOREIGN KEY (from_user_id) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (to_user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
 CREATE INDEX idx_expenses_user_date ON expenses(user_id, expense_date);
 CREATE INDEX idx_timeline_user_date ON financial_timeline(user_id, event_date);
 CREATE INDEX idx_borrow_lend_user_date ON borrow_lend_records(user_id, record_date);
