@@ -2,24 +2,69 @@ const pool = require("../db/pool");
 const { TIMELINE_TYPES } = require("../config/constants");
 const { createTimelineEvent } = require("./timelineService");
 
+function formatLocalDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function parseLocalDate(value) {
+  if (value instanceof Date) {
+    return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+  }
+
+  const [datePart] = String(value || "").split(/[T ]/);
+  const [year, month, day] = datePart.split("-").map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+}
+
 function addCycle(dateValue, frequency) {
-  const date = new Date(dateValue);
-  if (Number.isNaN(date.getTime())) return null;
+  const date = parseLocalDate(dateValue);
+  if (!date || Number.isNaN(date.getTime())) return null;
 
   if (frequency === "weekly") {
     date.setDate(date.getDate() + 7);
   } else if (frequency === "yearly") {
     date.setFullYear(date.getFullYear() + 1);
   } else {
-    date.setMonth(date.getMonth() + 1);
+    const targetDay = date.getDate();
+    const nextMonth = new Date(date.getFullYear(), date.getMonth() + 1, 1);
+    const daysInNextMonth = new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 1, 0).getDate();
+    date.setFullYear(nextMonth.getFullYear(), nextMonth.getMonth(), Math.min(targetDay, daysInNextMonth));
   }
 
-  return date.toISOString().slice(0, 10);
+  return formatLocalDate(date);
+}
+
+function dateForDayOfMonth(day, baseDate = new Date()) {
+  const safeDay = Math.max(1, Math.min(31, Number(day) || 1));
+  const year = baseDate.getFullYear();
+  const month = baseDate.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  return new Date(year, month, Math.min(safeDay, daysInMonth));
+}
+
+function nextMonthlyDueDate(day, fromDate = new Date()) {
+  const candidate = dateForDayOfMonth(day, fromDate);
+  const today = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate());
+
+  if (candidate.getTime() < today.getTime()) {
+    const nextMonth = new Date(fromDate.getFullYear(), fromDate.getMonth() + 1, 1);
+    return formatLocalDate(dateForDayOfMonth(day, nextMonth));
+  }
+
+  return formatLocalDate(candidate);
 }
 
 async function createRecurringPayment(userId, payload) {
-  const startDate = payload.startDate || new Date().toISOString().slice(0, 10);
-  const nextDueDate = payload.nextDueDate || addCycle(startDate, payload.frequency) || startDate;
+  const startDate = payload.startDate || formatLocalDate(new Date());
+  const nextDueDate =
+    payload.nextDueDate ||
+    (payload.frequency === "monthly" && payload.billingDay
+      ? nextMonthlyDueDate(payload.billingDay)
+      : addCycle(startDate, payload.frequency) || startDate);
 
   const [result] = await pool.query(
     `INSERT INTO recurring_payments
@@ -52,6 +97,7 @@ async function createRecurringPayment(userId, payload) {
       ...payload,
       startDate,
       nextDueDate,
+      billingDay: payload.billingDay || null,
     }
   });
 
@@ -86,7 +132,7 @@ async function resolvePaymentMethodId(name) {
  * missed cycles to avoid runaway loops.
  */
 async function processDueRecurringPayments(userId) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = formatLocalDate(new Date());
   const [due] = await pool.query(
     "SELECT * FROM recurring_payments WHERE user_id = ? AND next_due_date <= ?",
     [userId, today]
@@ -97,9 +143,8 @@ async function processDueRecurringPayments(userId) {
     const paymentMethodId = await resolvePaymentMethodId(payment.payment_account);
     if (!categoryId || !paymentMethodId) continue;
 
-    let dueDate = payment.next_due_date instanceof Date
-      ? payment.next_due_date.toISOString().slice(0, 10)
-      : String(payment.next_due_date).slice(0, 10);
+    const parsedDueDate = parseLocalDate(payment.next_due_date);
+    let dueDate = parsedDueDate ? formatLocalDate(parsedDueDate) : String(payment.next_due_date).slice(0, 10);
     let guard = 0;
 
     while (dueDate <= today && guard < 24) {
@@ -159,6 +204,13 @@ async function processDueRecurringPayments(userId) {
   }
 }
 
+async function processAllDueRecurringPayments() {
+  const [users] = await pool.query("SELECT DISTINCT user_id FROM recurring_payments");
+  for (const row of users) {
+    await processDueRecurringPayments(row.user_id);
+  }
+}
+
 async function getRecurringPayments(userId) {
   await processDueRecurringPayments(userId);
   const [rows] = await pool.query(
@@ -166,6 +218,47 @@ async function getRecurringPayments(userId) {
     [userId]
   );
   return rows;
+}
+
+async function getRecurringPaymentHistory(userId, recurringId) {
+  const [paymentRows] = await pool.query(
+    "SELECT id, title FROM recurring_payments WHERE id = ? AND user_id = ? LIMIT 1",
+    [recurringId, userId]
+  );
+
+  if (!paymentRows.length) {
+    const ApiError = require("../utils/ApiError");
+    throw new ApiError(404, "Recurring payment not found");
+  }
+
+  const marker = `${paymentRows[0].title} (recurring)`;
+  const [rows] = await pool.query(
+    `SELECT
+       e.id,
+       e.amount,
+       e.expense_date,
+       e.notes,
+       c.name AS category_name,
+       pm.name AS payment_method_name,
+       DATE_FORMAT(e.expense_date, '%M %Y') AS month_label
+     FROM expenses e
+     LEFT JOIN categories c ON c.id = e.category_id
+     LEFT JOIN payment_methods pm ON pm.id = e.payment_method_id
+     WHERE e.user_id = ?
+       AND e.notes = ?
+     ORDER BY e.expense_date DESC, e.id DESC`,
+    [userId, marker]
+  );
+
+  return rows.map((row) => ({
+    id: row.id,
+    amount: row.amount,
+    expense_date: row.expense_date,
+    month_label: row.month_label,
+    category_name: row.category_name || "Other",
+    payment_method_name: row.payment_method_name || "Cash",
+    notes: row.notes,
+  }));
 }
 
 async function deleteRecurringPayment(userId, recurringId) {
@@ -191,6 +284,8 @@ async function deleteRecurringPayment(userId, recurringId) {
 module.exports = {
   createRecurringPayment,
   getRecurringPayments,
+  getRecurringPaymentHistory,
   deleteRecurringPayment,
-  processDueRecurringPayments
+  processDueRecurringPayments,
+  processAllDueRecurringPayments,
 };
