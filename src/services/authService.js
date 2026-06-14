@@ -5,6 +5,16 @@ const pool = require("../db/pool");
 const ApiError = require("../utils/ApiError");
 const { sendOtpMail } = require("./mailService");
 const { reconcileGuestRecordsForUser } = require("./borrowLendService");
+const { reconcileGroupMembershipsForUser } = require("./groupService");
+
+async function reconcileGuestData(user) {
+  await reconcileGuestRecordsForUser(user);
+  try {
+    await reconcileGroupMembershipsForUser(user);
+  } catch (error) {
+    console.error("Failed to reconcile group memberships", error);
+  }
+}
 
 function createToken(user) {
   return jwt.sign(
@@ -76,7 +86,7 @@ async function verifyOtp(phoneNumber, otpCode) {
     user = newUserRows[0];
   }
 
-  await reconcileGuestRecordsForUser(user);
+  await reconcileGuestData(user);
 
   return {
     token: createToken(user),
@@ -159,7 +169,7 @@ async function verifyEmailOtp(email, otpCode) {
   const [updatedUserRows] = await pool.query("SELECT * FROM users WHERE id = ?", [user.id]);
   const updatedUser = updatedUserRows[0];
 
-  await reconcileGuestRecordsForUser(updatedUser);
+  await reconcileGuestData(updatedUser);
 
   return {
     token: createToken(updatedUser),
@@ -186,7 +196,7 @@ async function login(username, password) {
     throw new ApiError(401, "Invalid credentials");
   }
 
-  await reconcileGuestRecordsForUser(user);
+  await reconcileGuestData(user);
 
   return {
     token: createToken(user),
@@ -228,7 +238,7 @@ async function loginWithGoogle(payload) {
     user = newUserRows[0];
   }
 
-  await reconcileGuestRecordsForUser(user);
+  await reconcileGuestData(user);
 
   return {
     token: createToken(user),

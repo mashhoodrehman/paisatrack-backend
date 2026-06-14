@@ -1,6 +1,7 @@
 const pool = require("../db/pool");
 const { TIMELINE_TYPES } = require("../config/constants");
 const { createTimelineEvent } = require("./timelineService");
+const { sendBorrowLendInviteMail } = require("./mailService");
 
 async function createMirrorRecord(connection, sourceRecordId, ownerUserId, mirrorUserId, payload) {
   const mirrorType = payload.type === "borrow" ? "lend" : "borrow";
@@ -42,6 +43,14 @@ async function createRecord(userId, payload) {
 
   try {
     await connection.beginTransaction();
+
+    const [[owner]] = await connection.query(
+      "SELECT full_name, email, phone_number FROM users WHERE id = ? LIMIT 1",
+      [userId]
+    );
+    payload.ownerName = payload.ownerName || owner?.full_name || "Friend";
+    payload.ownerEmail = payload.ownerEmail || owner?.email || null;
+    payload.ownerPhone = payload.ownerPhone || owner?.phone_number || null;
 
     let personUserId = payload.personUserId || null;
     if (!personUserId && (payload.email || payload.phone)) {
@@ -120,7 +129,17 @@ async function createRecord(userId, payload) {
 
     await connection.commit();
 
-    return { id: result.insertId, mirrorRecordId, message: "Borrow/lend record created successfully" };
+    let inviteSent = false;
+    if (!personUserId && payload.email) {
+      try {
+        await sendBorrowLendInviteMail(payload.email, payload);
+        inviteSent = true;
+      } catch (error) {
+        console.error("Failed to send borrow/lend invite", error);
+      }
+    }
+
+    return { id: result.insertId, mirrorRecordId, inviteSent, message: "Borrow/lend record created successfully" };
   } catch (error) {
     await connection.rollback();
     throw error;
@@ -223,7 +242,7 @@ async function reconcileGuestRecordsForUser(user) {
         status: row.status,
         paymentMethodId: row.payment_method_id || null,
         paymentAccount: row.payment_account || null,
-        reflectInNet: Boolean(row.reflect_in_net),
+        reflectInNet: false,
         dueAlertEnabled: Boolean(row.due_alert_enabled),
         notes: row.notes || null,
         ownerName: row.owner_name || "Friend",
@@ -250,7 +269,7 @@ async function reconcileGuestRecordsForUser(user) {
         title: row.record_type === "borrow" ? "Friend borrowed from you" : "Friend lent you money",
         subtitle: row.owner_name || "Friend",
         amount: Number(row.amount || 0),
-        eventDate: row.record_date,
+        eventDate: row.return_date || row.record_date,
         referenceTable: "borrow_lend_records",
         referenceId: mirrorRecordId,
         metadata: {

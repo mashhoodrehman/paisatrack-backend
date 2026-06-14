@@ -69,6 +69,15 @@ async function createExpense(userId, payload) {
         let isRegistered = 0;
         let inviteStatus = participant.inviteStatus || "none";
 
+        // The creator's own row ("Me") must be linked to their account so balances resolve.
+        if (
+          !participantUserId &&
+          (participant.isSelf ||
+            String(participant.name || "").trim().toLowerCase() === "me")
+        ) {
+          participantUserId = userId;
+        }
+
         if (!participantUserId && (participant.username || participant.email || participant.phone)) {
           const [matches] = await connection.query(
             `SELECT id FROM users

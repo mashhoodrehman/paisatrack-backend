@@ -11,19 +11,31 @@ const getGroups = asyncHandler(async (req, res) => {
   res.json({ success: true, data });
 });
 
-const getGroupExpenses = asyncHandler(async (req, res) => {
-  const data = await groupService.getGroupExpenses(req.params.id);
+const getGroupDetail = asyncHandler(async (req, res) => {
+  const data = await groupService.getGroupDetail(req.user.id, req.params.id);
   res.json({ success: true, data });
 });
 
-const getGroupSettlement = asyncHandler(async (req, res) => {
-  const data = await groupService.getGroupSettlement(req.params.id);
+const addMembers = asyncHandler(async (req, res) => {
+  const data = await groupService.addMembers(req.user.id, req.params.id, req.body);
+  res.status(201).json({ success: true, data });
+});
+
+const settleUp = asyncHandler(async (req, res) => {
+  const data = await groupService.settleUp(req.user.id, req.params.id, req.body);
+  res.status(201).json({ success: true, data });
+});
+
+const deleteGroup = asyncHandler(async (req, res) => {
+  const data = await groupService.deleteGroup(req.user.id, req.params.id);
   res.json({ success: true, data });
 });
 
 module.exports = {
   createGroup,
   getGroups,
-  getGroupExpenses,
-  getGroupSettlement
+  getGroupDetail,
+  addMembers,
+  settleUp,
+  deleteGroup,
 };
