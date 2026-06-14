@@ -1,15 +1,29 @@
 const pool = require("../db/pool");
 
+// mysql2 may return JSON columns already parsed (object) or as a string.
+function parseMetadata(value) {
+  if (!value) return {};
+  if (typeof value === "object") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return {};
+  }
+}
+
 async function getDashboard(userId) {
   const [[user]] = await pool.query(
     "SELECT full_name, username, monthly_income, income_source, income_profile_type, income_frequency, currency_code FROM users WHERE id = ?",
     [userId]
   );
 
+  // Personal expenses only (split expenses are reflected via the cash model below)
   const [[expenseSummary]] = await pool.query(
-    `SELECT COALESCE(SUM(amount), 0) AS monthly_expenses
-     FROM expenses
-     WHERE user_id = ? AND reflect_in_net = 1 AND MONTH(expense_date) = MONTH(CURDATE()) AND YEAR(expense_date) = YEAR(CURDATE())`,
+    `SELECT COALESCE(SUM(e.amount), 0) AS monthly_expenses
+     FROM expenses e
+     WHERE e.user_id = ? AND e.reflect_in_net = 1
+       AND MONTH(e.expense_date) = MONTH(CURDATE()) AND YEAR(e.expense_date) = YEAR(CURDATE())
+       AND NOT EXISTS (SELECT 1 FROM expense_shares es WHERE es.expense_id = e.id)`,
     [userId]
   );
 
@@ -43,12 +57,45 @@ async function getDashboard(userId) {
     [userId]
   );
 
-  const [[splitSummary]] = await pool.query(
-    `SELECT COALESCE(SUM(es.share_amount), 0) AS split_outstanding
+  // Cash model for splits: out-of-pocket paid is an expense; settlements received are income.
+  const [[splitPaidSummary]] = await pool.query(
+    `SELECT COALESCE(SUM(es.paid_amount), 0) AS split_paid
+     FROM expense_shares es
+     INNER JOIN expenses e ON e.id = es.expense_id
+     WHERE es.participant_user_id = ? AND e.reflect_in_net = 1
+       AND MONTH(e.expense_date) = MONTH(CURDATE()) AND YEAR(e.expense_date) = YEAR(CURDATE())`,
+    [userId]
+  );
+
+  const [[settlementSummary]] = await pool.query(
+    `SELECT
+        COALESCE(SUM(CASE WHEN to_user_id = ? THEN amount ELSE 0 END), 0) AS settlements_received,
+        COALESCE(SUM(CASE WHEN from_user_id = ? THEN amount ELSE 0 END), 0) AS settlements_paid
+     FROM expense_settlements
+     WHERE (to_user_id = ? OR from_user_id = ?)
+       AND MONTH(settled_date) = MONTH(CURDATE()) AND YEAR(settled_date) = YEAR(CURDATE())`,
+    [userId, userId, userId, userId]
+  );
+
+  // Net outstanding the user still owes across all their group splits (cash basis)
+  const [[splitOutstandingSummary]] = await pool.query(
+    `SELECT
+        COALESCE(SUM(es.paid_amount), 0) AS total_paid,
+        COALESCE(SUM(es.share_amount), 0) AS total_share
      FROM expense_shares es
      INNER JOIN expenses e ON e.id = es.expense_id
      WHERE es.participant_user_id = ? AND e.reflect_in_net = 1`,
     [userId]
+  );
+
+  // All-time settlements adjust the outstanding balance (creditors receive, debtors pay).
+  const [[allSettlements]] = await pool.query(
+    `SELECT
+        COALESCE(SUM(CASE WHEN to_user_id = ? THEN amount ELSE 0 END), 0) AS received,
+        COALESCE(SUM(CASE WHEN from_user_id = ? THEN amount ELSE 0 END), 0) AS paid
+     FROM expense_settlements
+     WHERE to_user_id = ? OR from_user_id = ?`,
+    [userId, userId, userId, userId]
   );
 
   const [[committeeSummary]] = await pool.query(
@@ -68,16 +115,30 @@ async function getDashboard(userId) {
 
   const recurringIncome =
     user.income_frequency === "monthly" ? Number(user.monthly_income || 0) : 0;
-  const totalIncome = recurringIncome + Number(incomeSummary.extra_income || 0);
+  const splitPaid = Number(splitPaidSummary.split_paid || 0);
+  const settlementsReceived = Number(settlementSummary.settlements_received || 0);
+  const settlementsPaid = Number(settlementSummary.settlements_paid || 0);
+  const splitNetOutstanding =
+    Number(splitOutstandingSummary.total_paid || 0) -
+    Number(splitOutstandingSummary.total_share || 0) -
+    Number(allSettlements.received || 0) +
+    Number(allSettlements.paid || 0);
+  const splitYouOwe = splitNetOutstanding < 0 ? Math.abs(splitNetOutstanding) : 0;
+  const splitOwedToYou = splitNetOutstanding > 0 ? splitNetOutstanding : 0;
+
+  const totalIncome =
+    recurringIncome + Number(incomeSummary.extra_income || 0) + settlementsReceived;
+
+  const monthlyExpenses =
+    Number(expenseSummary.monthly_expenses || 0) + splitPaid + settlementsPaid;
 
   const netBalance =
     totalIncome -
-    Number(expenseSummary.monthly_expenses || 0) -
+    monthlyExpenses -
     Number(parchiSummary.parchi_outstanding || 0) -
     Number(cardSummary.cards_outstanding || 0) -
     Number(borrowSummary.borrowed || 0) +
     Number(borrowSummary.lent || 0) -
-    Number(splitSummary.split_outstanding || 0) -
     Number(committeeSummary.committee_total || 0);
 
   const [timeline] = await pool.query(
@@ -98,17 +159,22 @@ async function getDashboard(userId) {
     incomeSource: user.income_source || "Salary",
     incomeType: user.income_profile_type || "salary",
     incomeCadence: user.income_frequency || "monthly",
-    monthlyExpenses: Number(expenseSummary.monthly_expenses || 0),
+    monthlyExpenses,
     borrowedOutstanding: Number(borrowSummary.borrowed || 0),
     lentOutstanding: Number(borrowSummary.lent || 0),
     parchiOutstanding: Number(parchiSummary.parchi_outstanding || 0),
-    splitOutstanding: Number(splitSummary.split_outstanding || 0),
+    splitPaid,
+    splitSettlementsReceived: settlementsReceived,
+    splitSettlementsPaid: settlementsPaid,
+    splitYouOwe,
+    splitOwedToYou,
+    splitOutstanding: splitYouOwe,
     committeeOutstanding: Number(committeeSummary.committee_total || 0),
     cardsOutstanding: Number(cardSummary.cards_outstanding || 0),
     upcomingBillsCount: Number(upcomingBills.count || 0),
     timeline: timeline.map((item) => ({
       ...item,
-      metadata: item.metadata_json ? JSON.parse(item.metadata_json) : {},
+      metadata: parseMetadata(item.metadata_json),
     })),
   };
 }
